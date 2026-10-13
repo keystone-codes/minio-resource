@@ -1,0 +1,19 @@
+[project]
+name = "minio-resource-tests"
+version = "1.0.0"
+description = "Integration tests for the minio Keystone resource package."
+requires-python = ">=3.11"
+dependencies = [
+  "boto3>=1.34",
+  "pytest>=8",
+  "pyyaml>=6",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+markers = [
+  "integration: requires Docker and the pinned MinIO image",
+]
+testpaths = ["tests"]

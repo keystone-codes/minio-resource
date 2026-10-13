@@ -1,0 +1,45 @@
+#!/bin/sh
+# Stand-in for mc. Records arguments and stdin; never prints secrets back.
+set -eu
+
+if [ -z "${FAKE_MC_LOG-}" ] || [ -z "${FAKE_MC_STDIN-}" ]; then
+  printf '%s\n' "FAKE_MC_LOG and FAKE_MC_STDIN must be set." >&2
+  exit 1
+fi
+
+printf '%s\n' "$*" >>"$FAKE_MC_LOG"
+
+if [ "${1-}" = "alias" ] && [ "${2-}" = "import" ]; then
+  cat >>"$FAKE_MC_STDIN"
+  printf '\n' >>"$FAKE_MC_STDIN"
+fi
+if [ "${1-}" = "admin" ] && [ "${2-}" = "user" ] && [ "${3-}" = "add" ]; then
+  cat >>"$FAKE_MC_STDIN"
+  printf '\n' >>"$FAKE_MC_STDIN"
+fi
+
+scenario=${FAKE_MC_SCENARIO:-success}
+
+if [ "${1-}" = "ready" ] && [ "$scenario" = "not-ready" ]; then
+  printf '%s\n' "MinIO is not ready." >&2
+  exit 1
+fi
+
+if [ "${1-}" = "admin" ] && [ "${2-}" = "user" ] && [ "${3-}" = "info" ]; then
+  user=
+  prev=
+  for arg in "$@"; do
+    if [ "$prev" = "provider" ]; then
+      user=$arg
+      break
+    fi
+    prev=$arg
+  done
+  if [ "$scenario" = "policy-attached" ]; then
+    printf '%s\n' "{\"status\":\"success\",\"accessKey\":\"$user\",\"policyName\":\"$user-bucket-rw\",\"userStatus\":\"enabled\"}"
+  else
+    printf '%s\n' "{\"status\":\"success\",\"accessKey\":\"$user\",\"userStatus\":\"enabled\"}"
+  fi
+fi
+
+exit 0
