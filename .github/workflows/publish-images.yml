@@ -1,0 +1,118 @@
+name: Publish images
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    name: Publish MinIO and mc
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Open images already pushed under the agreed names
+        id: open
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          open_one() {
+            name="$1"
+            if gh api --method PATCH \
+              -H "Accept: application/vnd.github+json" \
+              "/orgs/keystone-codes/packages/container/${name}" \
+              -f visibility=public >/tmp/open-${name}.json; then
+              echo "${name}=public" >> "$GITHUB_OUTPUT"
+            else
+              echo "${name}=closed" >> "$GITHUB_OUTPUT"
+              echo "could not open ${name}"
+              cat /tmp/open-${name}.json || true
+            fi
+          }
+          open_one minio
+          open_one minio-mc
+
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4
+        if: steps.open.outputs.minio != 'public' || steps.open.outputs.minio-mc != 'public'
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+        if: steps.open.outputs.minio != 'public' || steps.open.outputs.minio-mc != 'public'
+
+      - name: Log in to GHCR
+        if: steps.open.outputs.minio != 'public' || steps.open.outputs.minio-mc != 'public'
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download the frozen release binaries
+        if: steps.open.outputs.minio != 'public' || steps.open.outputs.minio-mc != 'public'
+        working-directory: images
+        run: |
+          set -eu
+          server=RELEASE.2025-09-07T16-13-09Z
+          client=RELEASE.2025-08-13T08-35-41Z
+          curl -fL --retry 3 -o "minio.linux-amd64" \
+            "https://github.com/minio/minio/releases/download/${server}/minio.linux-amd64.${server}"
+          curl -fL --retry 3 -o "minio.linux-arm64" \
+            "https://github.com/minio/minio/releases/download/${server}/minio.linux-arm64.${server}"
+          curl -fL --retry 3 -o "mc.linux-amd64" \
+            "https://github.com/minio/mc/releases/download/${client}/mc.linux-amd64.${client}"
+          curl -fL --retry 3 -o "mc.linux-arm64" \
+            "https://github.com/minio/mc/releases/download/${client}/mc.linux-arm64.${client}"
+
+      - name: Publish the server under a fresh name
+        if: steps.open.outputs.minio != 'public'
+        id: server
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
+        with:
+          context: images
+          file: images/Dockerfile.server
+          platforms: linux/amd64,linux/arm64
+          push: true
+          provenance: false
+          sbom: false
+          tags: ghcr.io/keystone-codes/minio-server:1.0.0
+
+      - name: Publish the client under a fresh name
+        if: steps.open.outputs.minio-mc != 'public'
+        id: client
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
+        with:
+          context: images
+          file: images/Dockerfile.mc
+          platforms: linux/amd64,linux/arm64
+          push: true
+          provenance: false
+          sbom: false
+          tags: ghcr.io/keystone-codes/minio-client:1.0.0
+
+      - name: Require an anonymous pull
+        env:
+          SERVER_OPEN: ${{ steps.open.outputs.minio }}
+          CLIENT_OPEN: ${{ steps.open.outputs.minio-mc }}
+        run: |
+          set -eu
+          check() {
+            ref="$1"
+            code=$(curl -s -o /dev/null -w '%{http_code}' \
+              -H 'Accept: application/vnd.docker.distribution.manifest.list.v2+json' \
+              "https://ghcr.io/v2/keystone-codes/${ref}/manifests/1.0.0")
+            echo "${ref} anonymous manifest: ${code}"
+            test "$code" = "200"
+          }
+          if [ "$SERVER_OPEN" = "public" ]; then
+            check minio
+          else
+            check minio-server
+          fi
+          if [ "$CLIENT_OPEN" = "public" ]; then
+            check minio-mc
+          else
+            check minio-client
+          fi

@@ -1,0 +1,26 @@
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.6
+
+ARG TARGETARCH
+
+COPY docker-entrypoint.sh /usr/bin/docker-entrypoint.sh
+COPY minio.linux-${TARGETARCH} /usr/bin/minio
+COPY mc.linux-${TARGETARCH} /usr/bin/mc
+
+RUN chmod 755 /usr/bin/docker-entrypoint.sh /usr/bin/minio /usr/bin/mc
+
+ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
+    MINIO_ACCESS_KEY_FILE=access_key \
+    MINIO_SECRET_KEY_FILE=secret_key \
+    MINIO_ROOT_USER_FILE=access_key \
+    MINIO_ROOT_PASSWORD_FILE=secret_key \
+    MINIO_KMS_SECRET_KEY_FILE=kms_master_key \
+    MINIO_UPDATE_MINISIGN_PUBKEY=RWTx5Zr1tiHQLwG9keckT0c45M3AGeHD6IvimQHpyRywVWGbP1aVSGav \
+    MINIO_CONFIG_ENV_FILE=config.env \
+    MC_CONFIG_DIR=/tmp/.mc
+
+VOLUME ["/data"]
+LABEL org.opencontainers.image.source="https://github.com/keystone-codes/minio-resource" \
+      org.opencontainers.image.revision="RELEASE.2025-09-07T16-13-09Z" \
+      org.opencontainers.image.title="minio"
+ENTRYPOINT ["/usr/bin/docker-entrypoint.sh"]
+CMD ["minio"]
