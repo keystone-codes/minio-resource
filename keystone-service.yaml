@@ -10,8 +10,9 @@ provides: {kind: s3, version: 1, container: server}
 
 containers:
   server:
-    # RELEASE.2025-09-07T16-13-09Z — last published minio/minio image (amd64 and arm64 index).
-    image: minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
+    # RELEASE.2025-09-07T16-13-09Z binaries, packaged for GHCR (amd64 and arm64).
+    # The old Docker Hub index sha256:14cea493… is no longer pullable.
+    image: ghcr.io/keystone-codes/minio-server@sha256:af8333b0a5e9209abbb677c546b595dec87b45a227f33a2757b60e7d0ec5717f
     port: 9000
     command: [server, /data, --quiet]
     env:
@@ -26,7 +27,8 @@ containers:
 
 provision:
   per_consumer: bucket_and_user
-  # RELEASE.2025-08-13T08-35-41Z — last published minio/mc image (amd64 and arm64 index).
-  image: minio/mc@sha256:a7fe349ef4bd8521fb8497f55c6042871b2ae640607cf99d9bede5e9bdf11727
+  # RELEASE.2025-08-13T08-35-41Z client, packaged with a shell so provision can run.
+  # The old Docker Hub index sha256:a7fe349e… is no longer pullable.
+  image: ghcr.io/keystone-codes/minio-client@sha256:63ba7ba9b7ba59af56cb52d9052eb385cce4e8531b40d6b43639c9e7e514c97f
   script: provision.sh
   admin_env: {user: MINIO_ROOT_USER, password: MINIO_ROOT_PASSWORD}

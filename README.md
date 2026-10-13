@@ -59,21 +59,21 @@ Inside the container, `mc` reads the root key and the consumer secret from stdin
 
 Accepted by the product owner on 2026-10-12.
 
-Free `minio/minio` images stopped receiving updates, including security fixes, in late 2025. This package pins the last published server image:
+Free MinIO images stopped receiving updates, including security fixes, in late 2025. This package runs the last published release binaries. Docker Hub and `quay.io/minio` no longer serve those images, so the same binaries are packaged here and pulled from GHCR. The digest below is of that package. It is not the old Docker Hub index.
 
-| Image | Tag (comment only) | Digest |
+| Image | Software | Digest |
 |---|---|---|
-| `minio/minio` | `RELEASE.2025-09-07T16-13-09Z` (published 2025-09-07) | `sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e` |
-| `minio/mc` | `RELEASE.2025-08-13T08-35-41Z` (published 2025-08-13) | `sha256:a7fe349ef4bd8521fb8497f55c6042871b2ae640607cf99d9bede5e9bdf11727` |
+| `ghcr.io/keystone-codes/minio-server` | server `RELEASE.2025-09-07T16-13-09Z` | `sha256:af8333b0a5e9209abbb677c546b595dec87b45a227f33a2757b60e7d0ec5717f` |
+| `ghcr.io/keystone-codes/minio-client` | client `RELEASE.2025-08-13T08-35-41Z` | `sha256:63ba7ba9b7ba59af56cb52d9052eb385cce4e8531b40d6b43639c9e7e514c97f` |
 
-Checked on 2026-10-13. GitHub has a later server tag, `RELEASE.2025-10-15T17-29-55Z`, but that release was never published as a container image (the notes say to build it from source). No newer `minio/mc` image was published after `RELEASE.2025-08-13T08-35-41Z`. Docker Hub and `quay.io/minio` no longer serve anonymous pulls of these repositories, so a machine that does not already have the image cannot download it from those registries. Security fixes for this image are not being published.
+Checked on 2026-10-13. GitHub has a later server tag, `RELEASE.2025-10-15T17-29-55Z`, but that release was never published as a container image (the notes say to build it from source). No newer `mc` binary was published after `RELEASE.2025-08-13T08-35-41Z`. Security fixes for this software are not being published.
 
 To see whether a newer release exists, check the GitHub release lists:
 
 - https://github.com/minio/minio/releases
 - https://github.com/minio/mc/releases
 
-A digest is the pin. The tag above is only a label in `keystone-service.yaml`.
+A digest is the pin. The software release in the table is only a label in the comments of `keystone-service.yaml`.
 
 MinIO remains the default `s3/v1` provider. Another catalog provider (Garage, SeaweedFS, RustFS) or an external S3 endpoint can replace it through the same `s3/v1` interface. Services do not change.
 
