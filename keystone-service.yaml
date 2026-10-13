@@ -1,0 +1,32 @@
+schema_version: 1
+kind: resource
+name: minio
+version: 1.0.0
+publisher: keystone-codes
+summary: S3-compatible object storage (MinIO) for services that need an s3 resource.
+homepage: https://github.com/keystone-codes/minio-resource
+
+provides: {kind: s3, version: 1, container: server}
+
+containers:
+  server:
+    # RELEASE.2025-09-07T16-13-09Z — last published minio/minio image (amd64 and arm64 index).
+    image: minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
+    port: 9000
+    command: [server, /data, --quiet]
+    env:
+      - name: MINIO_BROWSER
+        default: "off"
+    volumes:
+      - {name: data, path: /data}
+    secrets:
+      - {name: MINIO_ROOT_USER, generate: {bytes: 16}}
+      - {name: MINIO_ROOT_PASSWORD, generate: {bytes: 32}}
+    healthcheck: {command: [mc, ready, local], interval: 10s, start_period: 20s}
+
+provision:
+  per_consumer: bucket_and_user
+  # RELEASE.2025-08-13T08-35-41Z — last published minio/mc image (amd64 and arm64 index).
+  image: minio/mc@sha256:a7fe349ef4bd8521fb8497f55c6042871b2ae640607cf99d9bede5e9bdf11727
+  script: provision.sh
+  admin_env: {user: MINIO_ROOT_USER, password: MINIO_ROOT_PASSWORD}
