@@ -182,6 +182,9 @@ def _provision(
             "docker",
             "run",
             "--rm",
+            # Root in the image would own the mode-600 secret, which Linux CI cannot read.
+            "--user",
+            f"{os.getuid()}:{os.getgid()}",
             "--network",
             stack.network,
             "--env-file",
