@@ -35,7 +35,7 @@ docker run --rm --network keystone-resources \
   -e MC_CONFIG_DIR=/tmp/mc \
   -v <package directory>:/pkg:ro \
   -v <secret directory, mode 700>:/out \
-  --entrypoint /bin/sh minio/mc@sha256:a7fe349ef4bd8521fb8497f55c6042871b2ae640607cf99d9bede5e9bdf11727 \
+  --entrypoint /bin/sh ghcr.io/keystone-codes/minio-client@sha256:63ba7ba9b7ba59af56cb52d9052eb385cce4e8531b40d6b43639c9e7e514c97f \
   /pkg/provision.sh --consumer file-mcp --endpoint http://minio-server:9000 --secret-file /out/file-mcp.secret
 ```
 
