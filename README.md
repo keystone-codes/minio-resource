@@ -77,6 +77,21 @@ A digest is the pin. The software release in the table is only a label in the co
 
 MinIO remains the default `s3/v1` provider. Another catalog provider (Garage, SeaweedFS, RustFS) or an external S3 endpoint can replace it through the same `s3/v1` interface. Services do not change.
 
+## Licenses
+
+This repository (Dockerfiles, `provision.sh`, tests, documentation) is licensed under Apache-2.0 (see `LICENSE`).
+
+The published images bundle unmodified, pre-built binaries of third-party software:
+
+| Image | Software | License |
+|---|---|---|
+| `ghcr.io/keystone-codes/minio-server` | MinIO Server `RELEASE.2025-09-07T16-13-09Z`, copyright MinIO, Inc. | AGPL-3.0-or-later |
+| `ghcr.io/keystone-codes/minio-client` | MinIO Client (`mc`) `RELEASE.2025-08-13T08-35-41Z`, copyright MinIO, Inc. | AGPL-3.0-or-later |
+
+Source for these releases: [`minio/minio`](https://github.com/minio/minio/tree/RELEASE.2025-09-07T16-13-09Z) and [`minio/mc`](https://github.com/minio/mc/tree/RELEASE.2025-08-13T08-35-41Z), at the release tags above. Full details, including the license text locations, are in `NOTICE`.
+
+An operator who modifies and distributes these images takes on the AGPL-3.0 obligations for the MinIO Server and MinIO Client binaries they contain.
+
 ## Tests
 
 ```bash

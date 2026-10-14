@@ -5,6 +5,7 @@ ARG TARGETARCH
 COPY docker-entrypoint.sh /usr/bin/docker-entrypoint.sh
 COPY minio.linux-${TARGETARCH} /usr/bin/minio
 COPY mc.linux-${TARGETARCH} /usr/bin/mc
+COPY LICENSE.AGPL-3.0 /licenses/LICENSE.AGPL-3.0
 
 RUN chmod 755 /usr/bin/docker-entrypoint.sh /usr/bin/minio /usr/bin/mc
 
@@ -21,6 +22,7 @@ ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
 VOLUME ["/data"]
 LABEL org.opencontainers.image.source="https://github.com/keystone-codes/minio-resource" \
       org.opencontainers.image.revision="RELEASE.2025-09-07T16-13-09Z" \
-      org.opencontainers.image.title="minio"
+      org.opencontainers.image.title="minio" \
+      org.opencontainers.image.licenses="AGPL-3.0-or-later"
 ENTRYPOINT ["/usr/bin/docker-entrypoint.sh"]
 CMD ["minio"]
