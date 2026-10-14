@@ -1,0 +1,32 @@
+minio-resource
+Copyright 2026 Alexey Klochkov
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+This repository builds container images (`ghcr.io/keystone-codes/minio-server`
+and `ghcr.io/keystone-codes/minio-client`) that bundle unmodified, pre-built
+binaries of third-party software. The Apache-2.0 license above covers this
+repository's own files (Dockerfiles, scripts, tests, documentation). It does
+not cover the bundled binaries listed below, which remain under their own
+license.
+
+1. MinIO Server, release RELEASE.2025-09-07T16-13-09Z
+   License: GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later)
+   Copyright (c) 2015-2025 MinIO, Inc.
+   Source code for this release:
+     https://github.com/minio/minio/tree/RELEASE.2025-09-07T16-13-09Z
+   License text for this release:
+     https://github.com/minio/minio/blob/RELEASE.2025-09-07T16-13-09Z/LICENSE
+
+2. MinIO Client (mc), release RELEASE.2025-08-13T08-35-41Z
+   License: GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later)
+   Copyright (c) 2015-2025 MinIO, Inc.
+   Source code for this release:
+     https://github.com/minio/mc/tree/RELEASE.2025-08-13T08-35-41Z
+   License text for this release:
+     https://github.com/minio/mc/blob/RELEASE.2025-08-13T08-35-41Z/LICENSE
+
+The binaries above are copied into the images unmodified, as published by
+MinIO, Inc. for the releases named above. The full text of the GNU Affero
+General Public License v3.0 is also included in this repository at
+`images/LICENSE.AGPL-3.0`.
