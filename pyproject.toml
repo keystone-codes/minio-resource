@@ -17,3 +17,4 @@ markers = [
   "integration: requires Docker and the pinned MinIO image",
 ]
 testpaths = ["tests"]
+pythonpath = ["scripts"]
