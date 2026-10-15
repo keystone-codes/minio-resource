@@ -1,0 +1,98 @@
+name: Tag release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - keystone-service.yaml
+
+permissions:
+  contents: write
+  packages: read
+
+jobs:
+  tag:
+    name: Tag the pinned digests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Read version and digests
+        id: pin
+        run: python3 scripts/pin_digests.py --print >> "$GITHUB_OUTPUT"
+
+      - name: Stop when the tag already exists
+        id: exists
+        env:
+          RELEASE_VERSION: ${{ steps.pin.outputs.version }}
+        run: |
+          set -euo pipefail
+          set +e
+          git ls-remote --exit-code --tags origin "refs/tags/v${RELEASE_VERSION}" >/dev/null 2>&1
+          code=$?
+          set -e
+          if [ "$code" -eq 0 ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+            echo "tag v${RELEASE_VERSION} already exists"
+          elif [ "$code" -eq 2 ]; then
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "git ls-remote failed" >&2
+            exit 1
+          fi
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+        if: steps.exists.outputs.present == 'false'
+
+      - name: Log in to GHCR
+        if: steps.exists.outputs.present == 'false'
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Require the published digests to match
+        if: steps.exists.outputs.present == 'false'
+        env:
+          RELEASE_VERSION: ${{ steps.pin.outputs.version }}
+          SERVER_DIGEST: ${{ steps.pin.outputs.server }}
+          CLIENT_DIGEST: ${{ steps.pin.outputs.client }}
+        run: |
+          set -euo pipefail
+          check() {
+            name="$1"
+            expected="$2"
+            ref="ghcr.io/keystone-codes/${name}:${RELEASE_VERSION}"
+            if ! published="$(docker buildx imagetools inspect "$ref" --format '{{json .Manifest.Digest}}')"; then
+              echo "image tag ${ref} is missing; refusing to tag" >&2
+              exit 1
+            fi
+            published="${published#\"}"
+            published="${published%\"}"
+            if [ "$published" != "$expected" ]; then
+              echo "published digest does not match keystone-service.yaml; refusing to tag" >&2
+              exit 1
+            fi
+          }
+          check minio-server "$SERVER_DIGEST"
+          check minio-client "$CLIENT_DIGEST"
+
+      - name: Tag and publish the GitHub release
+        if: steps.exists.outputs.present == 'false'
+        env:
+          RELEASE_VERSION: ${{ steps.pin.outputs.version }}
+          SERVER_DIGEST: ${{ steps.pin.outputs.server }}
+          CLIENT_DIGEST: ${{ steps.pin.outputs.client }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="v${RELEASE_VERSION}"
+          git tag "$tag"
+          git push origin "$tag"
+          notes="$(printf '%s\n' \
+            "Server: ghcr.io/keystone-codes/minio-server@${SERVER_DIGEST}" \
+            "Client: ghcr.io/keystone-codes/minio-client@${CLIENT_DIGEST}" \
+            "" \
+            "linux/amd64, linux/arm64.")"
+          gh release create "$tag" --generate-notes --title "$tag" --notes "$notes"

@@ -102,3 +102,15 @@ uv run pytest -q -m integration
 ```
 
 The integration tests need Docker and the pinned server image. They create only networks and containers whose names start with `ks-pkg-p01-`.
+
+## Releasing
+
+1. On a branch named `release/<version>`, set `version` in `keystone-service.yaml` and `pyproject.toml`, and add a line to `CHANGELOG.md`.
+2. The owner pushes that branch.
+3. `gh workflow run release-image.yml --ref release/<version> -f version=<version>`
+4. Review and merge the pull request from `release/pin-<version>`.
+5. `tag-release.yml` creates the git tag `v<version>` after the registry digests match the manifest.
+
+The GHCR tag `:<version>` is never overwritten. A fix is a new version.
+
+See [Releasing a new version](https://github.com/keystone-codes/keystonectl/blob/main/docs/packaging-a-service.md#releasing-a-new-version) in the keystonectl packaging guide.

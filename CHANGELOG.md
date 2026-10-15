@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Images are published by version with `release-image.yml`; digests are pinned by a pull request and the tag is created after the registry digests match.
+
 ## 1.0.0
 
 - First release of the `minio` resource package (`provides: s3/v1`).
