@@ -63,8 +63,8 @@ Free MinIO images stopped receiving updates, including security fixes, in late 2
 
 | Image | Software | Digest |
 |---|---|---|
-| `ghcr.io/keystone-codes/minio-server` | server `RELEASE.2025-09-07T16-13-09Z` | `sha256:af8333b0a5e9209abbb677c546b595dec87b45a227f33a2757b60e7d0ec5717f` |
-| `ghcr.io/keystone-codes/minio-client` | client `RELEASE.2025-08-13T08-35-41Z` | `sha256:63ba7ba9b7ba59af56cb52d9052eb385cce4e8531b40d6b43639c9e7e514c97f` |
+| `ghcr.io/keystone-codes/minio-server` | server `RELEASE.2025-09-07T16-13-09Z` | `sha256:a9dca07071a50045809704bb10681922448c9d7680d36afdbc2f7f759caaea6e` |
+| `ghcr.io/keystone-codes/minio-client` | client `RELEASE.2025-08-13T08-35-41Z` | `sha256:468a6df578c096e46a8dbff6e133ae5b480cf9fa802fde150a2430b10f63be92` |
 
 Checked on 2026-10-13. GitHub has a later server tag, `RELEASE.2025-10-15T17-29-55Z`, but that release was never published as a container image (the notes say to build it from source). No newer `mc` binary was published after `RELEASE.2025-08-13T08-35-41Z`. Security fixes for this software are not being published. Package 1.0.1 rebuilt the images from the same binaries to add the license text; the digests above are the 1.0.1 images.
 
