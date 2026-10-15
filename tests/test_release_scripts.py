@@ -63,7 +63,7 @@ def test_pin_updates_manifest_and_readme_only(tmp_path: Path, monkeypatch) -> No
         f"`sha256:{_OLD_CLIENT}`", f"`sha256:{_NEW_CLIENT}`"
     )
     assert f"@sha256:{_OLD_CLIENT}" in new_readme
-    assert "# The old Docker Hub index sha256:14cea493" in new_manifest
+    assert "# Image 1.0.1 adds the AGPL-3.0 text at /licenses and the license label." in new_manifest
 
 
 def test_pin_refuses_a_missing_line(tmp_path: Path, monkeypatch) -> None:
