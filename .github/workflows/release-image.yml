@@ -1,0 +1,189 @@
+name: Release image
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Semver X.Y.Z to publish"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  packages: write
+  pull-requests: write
+
+env:
+  MINIO_SERVER_RELEASE: RELEASE.2025-09-07T16-13-09Z
+  MINIO_CLIENT_RELEASE: RELEASE.2025-08-13T08-35-41Z
+  # Binaries already shipped in the published images. A mismatch means the
+  # upstream release asset changed; the build must not start.
+  MINIO_SERVER_SHA256_AMD64: 7c5bd8512c6e966455b1d198209358b2d191c77a83ab377c4073281065fb855f
+  MINIO_SERVER_SHA256_ARM64: 5c83cd2cf151717ba0243f73e1c7802ff36e272b67144bdd7f1f7d684fd6f03d
+  MINIO_CLIENT_SHA256_AMD64: 01f866e9c5f9b87c2b09116fa5d7c06695b106242d829a8bb32990c00312e891
+  MINIO_CLIENT_SHA256_ARM64: 14c8c9616cfce4636add161304353244e8de383b2e2752c0e9dad01d4c27c12c
+
+jobs:
+  release:
+    name: Build, push, and pin the digests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Check the version
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: python3 scripts/check_release_version.py
+
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Refuse to overwrite a published tag
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          refuse() {
+            ref="$1"
+            err="$(mktemp)"
+            if docker buildx imagetools inspect "$ref" >/dev/null 2>"$err"; then
+              rm -f "$err"
+              echo "image tag ${ref} already exists; tags are not overwritten" >&2
+              exit 1
+            fi
+            if grep -Eq 'not found|manifest unknown' "$err"; then
+              rm -f "$err"
+              return 0
+            fi
+            cat "$err" >&2
+            rm -f "$err"
+            exit 1
+          }
+          refuse "ghcr.io/keystone-codes/minio-server:${RELEASE_VERSION}"
+          refuse "ghcr.io/keystone-codes/minio-client:${RELEASE_VERSION}"
+
+      - name: Download the frozen release binaries
+        working-directory: images
+        run: |
+          set -euo pipefail
+          server="${MINIO_SERVER_RELEASE}"
+          client="${MINIO_CLIENT_RELEASE}"
+          curl -fL --retry 3 -o "minio.linux-amd64" \
+            "https://github.com/minio/minio/releases/download/${server}/minio.linux-amd64.${server}"
+          curl -fL --retry 3 -o "minio.linux-arm64" \
+            "https://github.com/minio/minio/releases/download/${server}/minio.linux-arm64.${server}"
+          curl -fL --retry 3 -o "mc.linux-amd64" \
+            "https://github.com/minio/mc/releases/download/${client}/mc.linux-amd64.${client}"
+          curl -fL --retry 3 -o "mc.linux-arm64" \
+            "https://github.com/minio/mc/releases/download/${client}/mc.linux-arm64.${client}"
+          {
+            echo "### Downloaded binary sha256"
+            echo
+            echo "| File | sha256 |"
+            echo "| --- | --- |"
+            sha256sum minio.linux-amd64 minio.linux-arm64 mc.linux-amd64 mc.linux-arm64 \
+              | awk '{printf "| `%s` | `%s` |\n", $2, $1}'
+          } >> "$GITHUB_STEP_SUMMARY"
+          sums="$(mktemp)"
+          printf '%s  %s\n' \
+            "$MINIO_SERVER_SHA256_AMD64" "minio.linux-amd64" \
+            "$MINIO_SERVER_SHA256_ARM64" "minio.linux-arm64" \
+            "$MINIO_CLIENT_SHA256_AMD64" "mc.linux-amd64" \
+            "$MINIO_CLIENT_SHA256_ARM64" "mc.linux-arm64" \
+            > "$sums"
+          if ! sha256sum -c "$sums"; then
+            echo "downloaded binary does not match the pinned sha256; the release asset changed" >&2
+            exit 1
+          fi
+          rm -f "$sums"
+
+      - name: Publish the server image
+        id: server
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
+        with:
+          context: images
+          file: images/Dockerfile.server
+          platforms: linux/amd64,linux/arm64
+          push: true
+          provenance: false
+          sbom: false
+          tags: ghcr.io/keystone-codes/minio-server:${{ inputs.version }}
+
+      - name: Publish the client image
+        id: client
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
+        with:
+          context: images
+          file: images/Dockerfile.mc
+          platforms: linux/amd64,linux/arm64
+          push: true
+          provenance: false
+          sbom: false
+          tags: ghcr.io/keystone-codes/minio-client:${{ inputs.version }}
+
+      - name: Smoke the published images
+        env:
+          SERVER_DIGEST: ${{ steps.server.outputs.digest }}
+          CLIENT_DIGEST: ${{ steps.client.outputs.digest }}
+        run: |
+          set -euo pipefail
+          server="ghcr.io/keystone-codes/minio-server@${SERVER_DIGEST}"
+          client="ghcr.io/keystone-codes/minio-client@${CLIENT_DIGEST}"
+          docker run --rm --entrypoint /usr/bin/minio "$server" --version | grep -F "$MINIO_SERVER_RELEASE"
+          docker run --rm "$client" --version | grep -F "$MINIO_CLIENT_RELEASE"
+          docker run --rm --entrypoint head "$server" -n 1 /licenses/LICENSE.AGPL-3.0 | grep -F "GNU AFFERO GENERAL PUBLIC LICENSE"
+          docker run --rm --entrypoint head "$client" -n 1 /licenses/LICENSE.AGPL-3.0 | grep -F "GNU AFFERO GENERAL PUBLIC LICENSE"
+          check_label() {
+            ref="$1"
+            label="$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.licenses" }}' "$ref")"
+            if [ "$label" != "AGPL-3.0-or-later" ]; then
+              echo "license label for ${ref} is '${label}'" >&2
+              exit 1
+            fi
+          }
+          check_label "$server"
+          check_label "$client"
+
+      - name: Pin the digests and open a pull request
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          SERVER_DIGEST: ${{ steps.server.outputs.digest }}
+          CLIENT_DIGEST: ${{ steps.client.outputs.digest }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version="$RELEASE_VERSION"
+          branch="release/pin-${version}"
+          git checkout -b "$branch"
+          python3 scripts/pin_digests.py "$SERVER_DIGEST" "$CLIENT_DIGEST"
+          git add keystone-service.yaml README.md
+          if git diff --cached --quiet; then
+            echo "digests are already recorded" >&2
+            exit 1
+          fi
+          git -c user.name="github-actions[bot]" \
+            -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -m "chore: pin image digests for ${version}"
+          git push --set-upstream origin "$branch"
+          body="$(mktemp)"
+          cat > "$body" <<EOF
+          ## Summary
+
+          - Version ${version}
+          - Server image digest \`${SERVER_DIGEST}\`
+          - Client image digest \`${CLIENT_DIGEST}\`
+          - Workflow run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
+
+          After this pull request is merged, \`tag-release.yml\` tags \`v${version}\` only when \`docker buildx imagetools inspect\` reports these same digests for both images.
+          EOF
+          gh pr create --base main --head "$branch" \
+            --title "chore: pin image digests for ${version}" \
+            --body-file "$body"
