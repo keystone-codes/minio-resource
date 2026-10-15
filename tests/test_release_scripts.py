@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import check_release_version
@@ -50,20 +51,31 @@ def _texts(tmp_path: Path) -> tuple[str, str]:
     return manifest, readme
 
 
+def _image_digest(text: str, image: str) -> str:
+    match = re.search(
+        rf"ghcr\.io/keystone-codes/{re.escape(image)}@sha256:([0-9a-f]{{64}})",
+        text,
+    )
+    assert match is not None
+    return match.group(1)
+
+
 def test_pin_updates_manifest_and_readme_only(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.chdir(tmp_path)
     manifest = (_ROOT / "keystone-service.yaml").read_text(encoding="utf-8")
     readme = (_ROOT / "README.md").read_text(encoding="utf-8")
     _write_pair(tmp_path, manifest, readme)
+    server = _image_digest(manifest, "minio-server")
+    client = _image_digest(manifest, "minio-client")
     completed = pin_digests.main([f"sha256:{_NEW_SERVER}", _NEW_CLIENT])
     assert completed == 0
     new_manifest, new_readme = _texts(tmp_path)
-    assert new_manifest == manifest.replace(_OLD_SERVER, _NEW_SERVER).replace(_OLD_CLIENT, _NEW_CLIENT)
-    assert new_readme == readme.replace(_OLD_SERVER, _NEW_SERVER).replace(
-        f"`sha256:{_OLD_CLIENT}`", f"`sha256:{_NEW_CLIENT}`"
+    assert new_manifest == manifest.replace(server, _NEW_SERVER).replace(client, _NEW_CLIENT)
+    assert new_readme == readme.replace(f"`sha256:{server}`", f"`sha256:{_NEW_SERVER}`").replace(
+        f"`sha256:{client}`", f"`sha256:{_NEW_CLIENT}`"
     )
     assert f"@sha256:{_OLD_CLIENT}" in new_readme
-    assert "# The old Docker Hub index sha256:14cea493" in new_manifest
+    assert "# Image 1.0.1 adds the AGPL-3.0 text at /licenses and the license label." in new_manifest
 
 
 def test_pin_refuses_a_missing_line(tmp_path: Path, monkeypatch) -> None:
