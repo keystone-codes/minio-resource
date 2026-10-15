@@ -12,7 +12,7 @@ containers:
   server:
     # RELEASE.2025-09-07T16-13-09Z binaries, packaged for GHCR (amd64 and arm64).
     # Image 1.0.1 adds the AGPL-3.0 text at /licenses and the license label.
-    image: ghcr.io/keystone-codes/minio-server@sha256:af8333b0a5e9209abbb677c546b595dec87b45a227f33a2757b60e7d0ec5717f
+    image: ghcr.io/keystone-codes/minio-server@sha256:a9dca07071a50045809704bb10681922448c9d7680d36afdbc2f7f759caaea6e
     port: 9000
     command: [server, /data, --quiet]
     env:
@@ -29,6 +29,6 @@ provision:
   per_consumer: bucket_and_user
   # RELEASE.2025-08-13T08-35-41Z client, packaged with a shell so provision can run.
   # Image 1.0.1 adds the AGPL-3.0 text at /licenses and the license label.
-  image: ghcr.io/keystone-codes/minio-client@sha256:63ba7ba9b7ba59af56cb52d9052eb385cce4e8531b40d6b43639c9e7e514c97f
+  image: ghcr.io/keystone-codes/minio-client@sha256:468a6df578c096e46a8dbff6e133ae5b480cf9fa802fde150a2430b10f63be92
   script: provision.sh
   admin_env: {user: MINIO_ROOT_USER, password: MINIO_ROOT_PASSWORD}
