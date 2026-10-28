@@ -1,6 +1,6 @@
 [project]
 name = "minio-resource-tests"
-version = "1.0.1"
+version = "1.0.2"
 description = "Integration tests for the minio Keystone resource package."
 requires-python = ">=3.11"
 dependencies = [
