@@ -6,6 +6,18 @@ ARG TARGETARCH
 # Pick up HIGH/CRITICAL fixes already published for the base layer.
 RUN microdnf upgrade -y && microdnf clean all
 
+# keystone-minio, uid:gid 10001:10001, same account as minio-server. The
+# image still defaults to root: provision.sh writes the per-consumer secret
+# file into a directory keystonectl creates on the host under whatever
+# uid runs the installer, and root is the only account guaranteed to be
+# able to write there on every install. Pass `--user 10001:10001` (or
+# `--user "$(id -u):$(id -g)"` to match the host, as the integration tests
+# here do) to run this image as non-root where the operator has arranged
+# for /out to be writable by that uid.
+RUN groupadd --gid 10001 keystone-minio \
+    && useradd --uid 10001 --gid 10001 --home-dir /nonexistent --no-create-home \
+        --shell /sbin/nologin keystone-minio
+
 COPY mc.linux-${TARGETARCH} /usr/bin/mc
 COPY LICENSE.AGPL-3.0 /licenses/LICENSE.AGPL-3.0
 RUN chmod 755 /usr/bin/mc

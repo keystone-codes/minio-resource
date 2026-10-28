@@ -6,6 +6,14 @@ ARG TARGETARCH
 # Pick up HIGH/CRITICAL fixes already published for the base layer.
 RUN microdnf upgrade -y && microdnf clean all
 
+# keystone-minio, uid:gid 10001:10001. The image still starts as root (see
+# docker-entrypoint.sh): that lets an existing, root-owned /data volume be
+# chowned once on upgrade, then every process after that drop runs as
+# keystone-minio, not root.
+RUN groupadd --gid 10001 keystone-minio \
+    && useradd --uid 10001 --gid 10001 --home-dir /nonexistent --no-create-home \
+        --shell /sbin/nologin keystone-minio
+
 COPY docker-entrypoint.sh /usr/bin/docker-entrypoint.sh
 COPY minio.linux-${TARGETARCH} /usr/bin/minio
 COPY mc.linux-${TARGETARCH} /usr/bin/mc
