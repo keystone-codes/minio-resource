@@ -165,6 +165,52 @@ jobs:
           check_label "$server" org.opencontainers.image.source "https://github.com/keystone-codes/minio-resource"
           check_label "$client" org.opencontainers.image.source "https://github.com/keystone-codes/minio-resource"
 
+      # OS-package gate: the base layer is ours to fix (microdnf upgrade,
+      # above), so a HIGH/CRITICAL left in it after that upgrade blocks the
+      # release. Scans by digest, against what was just pushed.
+      - name: Trivy - OS packages (gate)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ghcr.io/keystone-codes/minio-server@${{ steps.server.outputs.digest }}
+          vuln-type: os
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+
+      - name: Trivy - OS packages (gate, client)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ghcr.io/keystone-codes/minio-client@${{ steps.client.outputs.digest }}
+          vuln-type: os
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+
+      # Full report, including the bundled minio/mc Go binaries: informational
+      # only (exit-code 0). The owner's decision (CT-01/PK-01): upstream MinIO
+      # is archived, so CVEs inside the minio/mc binary itself have no fix to
+      # pick up here. Gating the release on them would block every release
+      # forever over findings this package cannot act on; the server/OS gate
+      # above is where a real fix (a base image rebuild) is still possible.
+      # The job summary still records the counts for whoever reads the run.
+      - name: Trivy - full report (informational, includes the minio/mc binary)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ghcr.io/keystone-codes/minio-server@${{ steps.server.outputs.digest }}
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "0"
+          format: table
+
+      - name: Trivy - full report (informational, client)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ghcr.io/keystone-codes/minio-client@${{ steps.client.outputs.digest }}
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "0"
+          format: table
+
       - name: Pin the digests and open a pull request
         env:
           RELEASE_VERSION: ${{ inputs.version }}
