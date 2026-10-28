@@ -23,7 +23,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
       - name: Lint the package manifest
-        run: uvx keystonectl@0.1.0 lint keystone-service.yaml
+        run: uvx keystonectl==0.2.0 lint keystone-service.yaml
 
   unit:
     runs-on: ubuntu-latest
@@ -31,6 +31,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
       - run: uv sync
+      - name: Ruff
+        run: uv run ruff check .
+      - name: Ruff format
+        run: uv run ruff format --check .
       - run: uv run pytest -q -m "not integration"
 
   integration:
