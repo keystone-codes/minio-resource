@@ -14,7 +14,7 @@ containers:
     # Image 1.0.2 runs as uid:gid 10001:10001 (chowning an older root-owned
     # /data volume once, on upgrade), pins the base image by digest, and adds
     # NOTICE at /licenses.
-    image: ghcr.io/keystone-codes/minio-server@sha256:a9dca07071a50045809704bb10681922448c9d7680d36afdbc2f7f759caaea6e
+    image: ghcr.io/keystone-codes/minio-server@sha256:21ae817b30283b62ef184f58fbd1e9891c8ac62c5f2337543b97075bd077cd5b
     port: 9000
     command: [server, /data, --quiet]
     env:
@@ -32,6 +32,6 @@ provision:
   # RELEASE.2025-08-13T08-35-41Z client, packaged with a shell so provision can run.
   # Image 1.0.2 pins the base image by digest and adds NOTICE at /licenses.
   # It still defaults to root; see README.md#running-as-non-root.
-  image: ghcr.io/keystone-codes/minio-client@sha256:468a6df578c096e46a8dbff6e133ae5b480cf9fa802fde150a2430b10f63be92
+  image: ghcr.io/keystone-codes/minio-client@sha256:b0d314c8471e4b6cb78ea50df3ca176073f1ac97a810041a4ff0c427046d4f4c
   script: provision.sh
   admin_env: {user: MINIO_ROOT_USER, password: MINIO_ROOT_PASSWORD}
