@@ -45,11 +45,14 @@ def _images() -> tuple[str, str]:
 
 
 def _image_present(ref: str) -> bool:
-    return subprocess.run(
-        ["docker", "image", "inspect", ref],
-        capture_output=True,
-        check=False,
-    ).returncode == 0
+    return (
+        subprocess.run(
+            ["docker", "image", "inspect", ref],
+            capture_output=True,
+            check=False,
+        ).returncode
+        == 0
+    )
 
 
 def _pull(ref: str) -> bool:

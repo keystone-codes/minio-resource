@@ -130,7 +130,9 @@ def _manifest_digest(lines: list[str], image: str) -> str:
     if len(indexes) != 1:
         raise _PinError(f"expected exactly one {image} image: line, found {len(indexes)}")
     body, _ending = _split_ending(lines[indexes[0]])
-    match = re.search(rf"ghcr\.io/keystone-codes/{re.escape(image)}@sha256:([0-9a-f]{{64}})\b", body)
+    match = re.search(
+        rf"ghcr\.io/keystone-codes/{re.escape(image)}@sha256:([0-9a-f]{{64}})\b", body
+    )
     if match is None:
         raise _PinError(f"the {image} image line has no sha256 digest")
     return match.group(1)

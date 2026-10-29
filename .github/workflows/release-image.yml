@@ -113,8 +113,10 @@ jobs:
           file: images/Dockerfile.server
           platforms: linux/amd64,linux/arm64
           push: true
-          provenance: false
-          sbom: false
+          provenance: true
+          sbom: true
+          build-args: |
+            RELEASE_VERSION=${{ inputs.version }}
           tags: ghcr.io/keystone-codes/minio-server:${{ inputs.version }}
 
       - name: Publish the client image
@@ -125,14 +127,17 @@ jobs:
           file: images/Dockerfile.mc
           platforms: linux/amd64,linux/arm64
           push: true
-          provenance: false
-          sbom: false
+          provenance: true
+          sbom: true
+          build-args: |
+            RELEASE_VERSION=${{ inputs.version }}
           tags: ghcr.io/keystone-codes/minio-client:${{ inputs.version }}
 
       - name: Smoke the published images
         env:
           SERVER_DIGEST: ${{ steps.server.outputs.digest }}
           CLIENT_DIGEST: ${{ steps.client.outputs.digest }}
+          RELEASE_VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
           server="ghcr.io/keystone-codes/minio-server@${SERVER_DIGEST}"
@@ -141,16 +146,70 @@ jobs:
           docker run --rm "$client" --version | grep -F "$MINIO_CLIENT_RELEASE"
           docker run --rm --entrypoint head "$server" -n 1 /licenses/LICENSE.AGPL-3.0 | grep -F "GNU AFFERO GENERAL PUBLIC LICENSE"
           docker run --rm --entrypoint head "$client" -n 1 /licenses/LICENSE.AGPL-3.0 | grep -F "GNU AFFERO GENERAL PUBLIC LICENSE"
+          docker run --rm --entrypoint grep "$server" -l "minio/minio" /licenses/NOTICE
+          docker run --rm --entrypoint grep "$client" -l "minio/mc" /licenses/NOTICE
           check_label() {
             ref="$1"
-            label="$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.licenses" }}' "$ref")"
-            if [ "$label" != "AGPL-3.0-or-later" ]; then
-              echo "license label for ${ref} is '${label}'" >&2
+            name="$2"
+            expected="$3"
+            label="$(docker image inspect --format "{{ index .Config.Labels \"${name}\" }}" "$ref")"
+            if [ "$label" != "$expected" ]; then
+              echo "${name} label for ${ref} is '${label}', expected '${expected}'" >&2
               exit 1
             fi
           }
-          check_label "$server"
-          check_label "$client"
+          check_label "$server" org.opencontainers.image.licenses AGPL-3.0-or-later
+          check_label "$client" org.opencontainers.image.licenses AGPL-3.0-or-later
+          check_label "$server" org.opencontainers.image.version "$RELEASE_VERSION"
+          check_label "$client" org.opencontainers.image.version "$RELEASE_VERSION"
+          check_label "$server" org.opencontainers.image.source "https://github.com/keystone-codes/minio-resource"
+          check_label "$client" org.opencontainers.image.source "https://github.com/keystone-codes/minio-resource"
+
+      # OS-package gate: the base layer is ours to fix (microdnf upgrade,
+      # above), so a HIGH/CRITICAL left in it after that upgrade blocks the
+      # release. Scans by digest, against what was just pushed.
+      - name: Trivy - OS packages (gate)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ghcr.io/keystone-codes/minio-server@${{ steps.server.outputs.digest }}
+          vuln-type: os
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+
+      - name: Trivy - OS packages (gate, client)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ghcr.io/keystone-codes/minio-client@${{ steps.client.outputs.digest }}
+          vuln-type: os
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+
+      # Full report, including the bundled minio/mc Go binaries: informational
+      # only (exit-code 0). The owner's decision (CT-01/PK-01): upstream MinIO
+      # is archived, so CVEs inside the minio/mc binary itself have no fix to
+      # pick up here. Gating the release on them would block every release
+      # forever over findings this package cannot act on; the server/OS gate
+      # above is where a real fix (a base image rebuild) is still possible.
+      # The job summary still records the counts for whoever reads the run.
+      - name: Trivy - full report (informational, includes the minio/mc binary)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ghcr.io/keystone-codes/minio-server@${{ steps.server.outputs.digest }}
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "0"
+          format: table
+
+      - name: Trivy - full report (informational, client)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ghcr.io/keystone-codes/minio-client@${{ steps.client.outputs.digest }}
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "0"
+          format: table
 
       - name: Pin the digests and open a pull request
         env:

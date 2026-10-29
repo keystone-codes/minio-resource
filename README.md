@@ -51,6 +51,38 @@ Exit codes: `0` done, `2` bad arguments or environment, `3` MinIO is down, the r
 
 Inside the container, `mc` reads the root key and the consumer secret from stdin (`mc alias import` and `mc admin user add`). Neither value is an argument of `mc`.
 
+## Running as non-root
+
+`ghcr.io/keystone-codes/minio-server` (1.0.2+) starts as root and drops to `keystone-minio`
+(uid:gid `10001:10001`) before `exec`-ing the `minio` process, the same pattern the official
+`postgres` image uses (start as root, `chown` if needed, then run the service under its own
+account). This is so an existing `data` volume created by 1.0.0/1.0.1 (which ran `minio` as root
+the whole time) keeps working: on the first 1.0.2 start, `docker-entrypoint.sh` `chown -R` the
+volume to `10001:10001` only when it is not already owned by that uid, then every later start on
+the same volume is a single `stat` plus the privilege drop, not a repeated `chown -R`. `docker top`
+on a running container shows the `minio` process under uid `10001`; `docker exec` still attaches
+as root unless `--user` is passed, because `exec` starts a new process in the container's
+configured user, not the user the entrypoint switched `minio` to.
+
+The deprecated `MINIO_USERNAME`/`MINIO_GROUPNAME` (and `MINIO_UID`/`MINIO_GID`) environment
+variables from before 1.0.2 still work exactly as before: when set, the entrypoint uses them
+instead of the uid:gid 10001:10001 default.
+
+`containers.server.user` (the `keystonectl` manifest field that forces a container's uid:gid at
+`docker run` time) is deliberately **not** set in `keystone-service.yaml`. Setting it would force
+uid 10001 from the very first start, including on an existing root-owned volume, where a non-root
+process cannot `chown` its own data directory — the first start on an old volume would fail. Doing
+the switch inside the entrypoint (root first, then drop) is what makes the migration possible
+without an operator action.
+
+`ghcr.io/keystone-codes/minio-client` also has the `keystone-minio` account (uid:gid
+`10001:10001`) available, but it still defaults to root. `provision.sh` writes the per-consumer
+secret file into a directory `keystonectl` creates on the host, under whatever uid runs the
+installer; root is the only account guaranteed to be able to write there on every install. Pass
+`--user 10001:10001`, or `--user "$(id -u):$(id -g)"` to match the host (as the integration tests
+in this repository do), to run the client image as non-root where the operator has arranged for
+that directory to be writable by the chosen uid.
+
 ## Why the console is off
 
 `MINIO_BROWSER=off`, and the server command has no `--console-address`. The console is not used by services, and its port would be another way in. Only port 9000 exists, and it stays on the resource network.
