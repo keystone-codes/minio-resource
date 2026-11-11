@@ -1,5 +1,5 @@
 # registry.access.redhat.com/ubi9/ubi-minimal:9.6
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.6@sha256:34880b64c07f28f64d95737f82f891516de9a3b43583f39970f7bf8e4cfa48b7
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8@sha256:bba2b4bbf0ed15cfe7dd72a1e17ae7d2015a141f306b304e1a2785c41400e39c
 
 ARG TARGETARCH
 # Set by release-image.yml to the version being published (X.Y.Z); used only
